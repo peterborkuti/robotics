@@ -15,9 +15,7 @@
 
 */
 
-#define LOW     0
-#define HIGH    1
-#define WTV020_VOLUME_MAX   0xFFF7
+#include "BP_WTV020SDMINI.h"
 
 void WTV020_sendCommand(uint16_t command) {
   //Start bit Low level pulse for 2 ms

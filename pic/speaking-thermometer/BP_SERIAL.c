@@ -6,6 +6,8 @@ stopbit : 1
 when the line is not used, set it to LOW
 */
 
+#include "BP_SERIAL.h"
+
 void putch(unsigned char chr) {
 char i;
 unsigned int data;

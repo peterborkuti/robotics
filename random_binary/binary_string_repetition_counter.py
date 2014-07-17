@@ -1,4 +1,5 @@
 import re # for overlapping occurences
+import random
 
 def count_repeats(s, checkLen, actual_min):
     allLen = len(s)
@@ -30,8 +31,15 @@ def count_repeats(s, checkLen, actual_min):
 
     return szum
 
-N = 24
+N = 16
 min=10000
+fmt = '{0:0' + str(N) +'b}'
+print fmt
+s = fmt.format(random.getrandbits(N))
+print 'setting min to a reasonable value with random binary:', s
+min = count_repeats(s, len(s), min)
+print 'done. starting min is ', min
+
 for i in xrange(0, 2**N):
     
     fmt = '{0:0' + str(N) + 'b}'

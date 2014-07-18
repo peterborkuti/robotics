@@ -31,7 +31,7 @@ def count_repeats(s, checkLen, actual_min):
 
     return szum
 
-N = 16
+N = 18
 min=10000
 fmt = '{0:0' + str(N) +'b}'
 print fmt

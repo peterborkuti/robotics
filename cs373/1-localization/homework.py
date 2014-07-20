@@ -21,7 +21,7 @@ for r in range(len(colors)):
 
 def show(p):
     for i in range(len(p)):
-        print p[i]
+        print (p[i])
 
 
 #Do not delete this comment!

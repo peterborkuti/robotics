@@ -6,11 +6,13 @@ const int ledPin =  13;      // the number of the LED pin
 long incrementalPos  = -999;
 long oldPosition = -999;    // position for debouncing
 long lastDebounceTime = 0;  // the last time the output pin was toggled
-long debounceDelay = 50;    // the debounce time; increase if the output flickers
+long debounceDelay = 150;    // the debounce time; increase if the output flickers
 
 //localization
 const byte LEN = 24;
-const char bits[] = {1,0,0,0,1,0,1,0,1,1,0,0,0,0,1,1,1,1,0,1,1,1,0,0}; //map
+//1: black - sensor reads 1
+//0: white - sensor reads 0
+const byte bits[] = {1,0,0,0,1,0,1,0,1,1,0,0,0,0,1,1,1,1,0,1,1,1,0,0}; //map
 float sensor_right = 0.9;
 float p_move = 0.7;
 
@@ -22,19 +24,24 @@ float p[] = {1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0,
              1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0};
 
              
-Encoder enc(3,4);
+Encoder enc(4, 3);
 
 void setup() {
   pinMode(ledPin, OUTPUT);
   pinMode(sensorPin, INPUT);
 
   Serial.begin(9600);
-  Serial.println("Encoder Test:");  
+  Serial.println("Encoder Test:");
+  sense(readQRD1114());
+  showP();
 }
 
 int readQRD1114() {
+  int state =  digitalRead(sensorPin);
 
-  return digitalRead(sensorPin);
+  digitalWrite(ledPin, state == HIGH);
+
+  return state;
 }
 
 void testQRD1114() {
@@ -43,7 +50,7 @@ void testQRD1114() {
   digitalWrite(ledPin, state == HIGH);
 }
 
-bool readIncEncoder() {
+int readIncEncoder() {
   long readPosition = enc.read();
 
   if (oldPosition != readPosition) {
@@ -55,17 +62,17 @@ bool readIncEncoder() {
     // than the debounce delay, so take it as the actual current state:
 
     if (incrementalPos != readPosition) {
-      incrementalPos += (incrementalPos < readPosition) ? 1 : -1;
+      int diff = (incrementalPos < readPosition) ? 1 : -1;
       enc.write(incrementalPos);
       oldPosition = incrementalPos;
 
-      return true;
+      return -diff;
     }
   }
   
   oldPosition = readPosition;
 
-  return false;
+  return 0;
 }
 
 void testIncEncoder() {
@@ -92,7 +99,7 @@ void sense(int Z) {
 
 }
 
-void move(int U) {
+void moveEncoder(int U) {
   float q[LEN];
   for (byte i = 0; i < LEN; i++) {
     float v_notMove = p[i] * (1.0 - p_move);
@@ -109,6 +116,12 @@ void move(int U) {
 
 void showP() {
  for (byte i = 0; i < LEN; i++) {
+   Serial.print(bits[i]);
+   Serial.print("   ,");
+ }
+
+ Serial.println();
+  for (byte i = 0; i < LEN; i++) {
    Serial.print(p[i]);
    Serial.print(',');
  }
@@ -118,16 +131,22 @@ void showP() {
 void testMove() {
  showP();
  for (byte i = 0; i < LEN; i++) {
-   move(1);
+   moveEncoder(1);
    showP();
  } 
 
 }
 
-int a = 0;
 void loop(){
-  //testQRD1114();
-  //testIncEncoder();
-  if (a == 0) testMove();
-  a = 1;
+  int moves = readIncEncoder();
+  if (moves != 0) {
+    moveEncoder(moves);
+    int sensed =  readQRD1114();
+    sense(sensed);
+    Serial.print("Moved:");
+    Serial.print(moves);
+    Serial.print(", Sensed:");
+    Serial.println(sensed);
+    showP();
+  }  
 }

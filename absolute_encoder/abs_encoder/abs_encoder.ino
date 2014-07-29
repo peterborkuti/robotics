@@ -7,6 +7,7 @@ long incrementalPos  = -999;
 long oldPosition = -999;    // position for debouncing
 long lastDebounceTime = 0;  // the last time the output pin was toggled
 long debounceDelay = 150;    // the debounce time; increase if the output flickers
+long sumDiffIncPos = 0;
 
 //localization
 const byte LEN = 24;
@@ -14,7 +15,7 @@ const byte LEN = 24;
 //0: white - sensor reads 0
 const byte bits[] = {1,0,0,0,1,0,1,0,1,1,0,0,0,0,1,1,1,1,0,1,1,1,0,0}; //map
 float sensor_right = 0.9;
-float p_move = 0.7;
+float p_move = 0.6;
 
 float p[] = {1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0,
              1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0,
@@ -23,6 +24,7 @@ float p[] = {1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0,
              1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0,
              1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0, 1.0/24.0};
 
+const byte sensed[] = {0,0,1,1,1,0,1,1,1,1,0,0,0,0,1,1,0,1,0,1,0,0,0,1,0,0,1,1,1,0,1,1,1,1,0};
              
 Encoder enc(4, 3);
 
@@ -34,6 +36,8 @@ void setup() {
   Serial.println("Encoder Test:");
   sense(readQRD1114());
   showP();
+  //testMove();
+  //test();
 }
 
 int readQRD1114() {
@@ -62,14 +66,22 @@ int readIncEncoder() {
     // than the debounce delay, so take it as the actual current state:
 
     if (incrementalPos != readPosition) {
-      int diff = (incrementalPos < readPosition) ? 1 : -1;
-      enc.write(incrementalPos);
-      oldPosition = incrementalPos;
+      sumDiffIncPos += (readPosition - oldPosition);
+      int diff = (sumDiffIncPos > 0) ? 1 : -1;
+      Serial.print("readIncEncoder:sumDiffIncPos:");
+      Serial.print(sumDiffIncPos);
+ 
+      sumDiffIncPos = 0;
+
+      enc.write(0);
+      oldPosition = 0;
+      incrementalPos = 0;
 
       return -diff;
     }
   }
   
+  sumDiffIncPos += (readPosition - oldPosition);
   oldPosition = readPosition;
 
   return 0;
@@ -101,9 +113,18 @@ void sense(int Z) {
 
 void moveEncoder(int U) {
   float q[LEN];
-  for (byte i = 0; i < LEN; i++) {
+  int j;
+  for (int i = 0; i < LEN; i++) {
+    j = i - U;
+    if (j < 0) {
+      j = LEN + j;
+    }
+    else if (j >= LEN) {
+      j = j - LEN;
+    }
+    
     float v_notMove = p[i] * (1.0 - p_move);
-    float v_move = p[(i - U) % LEN] * p_move;
+    float v_move = p[j] * p_move;
     float s = v_notMove + v_move;
     q[i] = s;
   }
@@ -115,20 +136,45 @@ void moveEncoder(int U) {
 }
 
 void showP() {
+
  for (byte i = 0; i < LEN; i++) {
    Serial.print(bits[i]);
    Serial.print("   ,");
  }
+ 
 
  Serial.println();
+ float mx = 0;
+ byte idx = 100;
   for (byte i = 0; i < LEN; i++) {
+   if (p[i] > mx) {
+      mx = p[i];
+      idx = i; 
+   }
    Serial.print(p[i]);
    Serial.print(',');
  }
+
+ Serial.println();
+ for (byte i = 0; i < LEN; i++) {
+   if ( i == idx) {
+     Serial.print("  * |");
+   }
+   else {
+     Serial.print("    |");
+   }
+ }
+ 
+ 
+ 
+ 
  Serial.println();
 }
 
 void testMove() {
+ for (byte i = 0; i < LEN; i++) {
+   p[i] = (float)i;
+ }  
  showP();
  for (byte i = 0; i < LEN; i++) {
    moveEncoder(1);
@@ -137,7 +183,21 @@ void testMove() {
 
 }
 
+void test() {
+  for (byte i = 0; i < sizeof(sensed); i++) {
+     sense(sensed[i]);
+     Serial.print("Sensed:");
+     Serial.println(sensed[i]);
+     showP();
+     moveEncoder(-1);
+     Serial.println("Moved:-1");
+     showP();   
+  }
+}
+
+
 void loop(){
+  
   int moves = readIncEncoder();
   if (moves != 0) {
     moveEncoder(moves);
@@ -148,5 +208,7 @@ void loop(){
     Serial.print(", Sensed:");
     Serial.println(sensed);
     showP();
-  }  
+  } 
+   
 }
+

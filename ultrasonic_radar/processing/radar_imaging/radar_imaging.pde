@@ -2,18 +2,22 @@ import processing.serial.*;
 
 int BACKGROUND = 100;
 float MAXINDEX = 2048.0;
-float PIEARC = 2.0 * PI / MAXINDEX;
+float MINARC = radians(5);
+float MAXARC = radians(355);
+float PIEARC = (MAXARC-MINARC) / MAXINDEX;
 float MAX_US = 30000.0;
 
 int[] COLORS = {255, 0};
 
 
 float[] data;
+float prevIndex = 0;
 float index = 0;
 
-float arc_len;
+float arcLen;
 
 String CMD = "";
+boolean prevDirection = false; // true: CW, false: CCW
 boolean direction = false;
 
 Serial port;
@@ -54,7 +58,7 @@ void draw() {
   translate(width/2, height/2);
 
   //processArduinoOutput("DATA,CW,"+i+","+random(MAX_US));
- if ("DATA".equals(CMD)) {
+ if ("D".equals(CMD)) {
    processData();
    drawLastData();
  } 
@@ -63,45 +67,71 @@ void draw() {
 
 }
 
-void processData() {  
+void processData() {
+  
+      prevDirection = direction;
+      direction = (data[0] > 0); //CW:1, CCW:0
+      if (direction != prevDirection) {
+        if (index > MAXINDEX) {
+          MAXINDEX = index;
+          PIEARC = (MAXARC-MINARC) / MAXINDEX;
+        }
+      }
+
+      prevIndex = (prevDirection != direction) ? 0 : index;
+      index = data[1];
+      arcLen = (min(width, height) * data[2] / MAX_US * 2.0);
+      
+      println(direction?"CW":"CCW",prevIndex, index, arcLen);
   
 }
 
-void drawLastData() {  
-  index = data[0] * (direction ? 1.0 : -1.0);
+void drawLastData() {
+  float arcRad = (index - prevIndex) * PIEARC;
+  float startArc, endArc;
+  if (direction) {
+    startArc = MINARC + prevIndex * PIEARC;
+    endArc = startArc + arcRad;
+  }
+  else {
+    //arc() needs that startArc < endArc
+    endArc = MAXARC - prevIndex * PIEARC;
+    startArc = endArc - arcRad;
+  }
+  
   stroke(BACKGROUND);
   fill(BACKGROUND);
-  arc(0, 0, min(width, height), min(width, height), index * PIEARC, (index + 10.0) * PIEARC);
 
-  if (data[1] > 0) {
-    float len = (min(width, height) * data[1] / MAX_US * 2.0);
-    stroke(10);
+  arc(0, 0, min(width, height), min(width, height), startArc, endArc);
+
+  if (arcLen > 0) {
+    noStroke();
     fill(50);
-    arc(0, 0, len, len, index * PIEARC, (index + 10.0) * PIEARC);
+    println("len, start, end:", arcLen, startArc, endArc);
+    arc(0, 0, arcLen, arcLen, startArc, endArc);
   }
   
 }
 
 void processArduinoOutput(String s) {
-  if (s.startsWith("DATA")) {
+  if (s.startsWith("D,")) {
     String[] a = s.split(",");
     if (a.length != 4) {
       println("Length != 4");
       return;
     }
     CMD = a[0].trim();
-    if ("DATA".equals(CMD)) {
-      direction = ("CCW".equals(a[1])) ? false : true;
-      data = new float[a.length - 2];
+    if ("D".equals(CMD)) {
+      data = new float[a.length - 1];
       for (byte i = 0; i < data.length; i++) {
-         data[i] = float(a[i + 2]);
+         data[i] = float(a[i + 1]);
       }
     }
     else {
       CMD = "";
     }
     // For debugging
-  println( "serial input:" + s + " CMD:" + CMD + "," + data[0] + "," + data[1]);
+  println( "serial input:" + s + " CMD:" + CMD + "," + join(nf(data, 5,0), ", ") );
 
   }
  }

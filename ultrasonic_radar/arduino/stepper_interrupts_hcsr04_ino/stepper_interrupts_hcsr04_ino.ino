@@ -10,6 +10,8 @@ volatile unsigned int stepCounter = 0;
 volatile bool state = false;
 volatile int stepIndex = 0;
 volatile int stepperDelayCounter = STEPPER_DELAY;
+volatile unsigned int maxSteps = 1024; //half-circle in motor-steps
+volatile bool maxStepsChanged = false;
 
 const byte motor_pin_1 = 8;
 const byte motor_pin_2 = 10;
@@ -26,7 +28,6 @@ NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and
 unsigned int pingSpeed = 500; // How frequently are we going to send out a ping (in milliseconds). 50ms would be 20 times a second.
 unsigned long pingTimer;     // Holds the next ping time.
 volatile unsigned long pingResult = 0;
-
 
 //pin change interrupt service routine
 //for pins in pingroup 0
@@ -53,6 +54,10 @@ ISR (PCINT2_vect)
     // start to counter-clockwise
     if (digitalRead(4)) {
       if (directionCW) { //really a start
+        if (maxSteps < stepCounter) {
+          maxSteps = stepCounter;
+          maxStepsChanged = true;
+        }
         stepCounter = 0;
       }
       directionCW = false;
@@ -61,6 +66,10 @@ ISR (PCINT2_vect)
     // start to clockwise
     if (digitalRead(5)) {
       if (!directionCW) { //really a start
+        if (maxSteps < stepCounter) {
+          maxSteps = stepCounter;
+          maxStepsChanged = true;
+        }
         stepCounter = 0;
       }
       directionCW = true;
@@ -125,8 +134,6 @@ PINx is for use in getting the current value from the port when it is set as an 
 PORTx also sets the state of the internal pull-up resistors when the port is set to input.
 And on more recent models, writing to PINx will toggle the value of the pins (the PORTx value) 
 
-
-
   // pin change interrupt (example for D9)
   PCMSK0 |= bit (PCINT1);  // want pin 9
   PCIFR  |= bit (PCIF0);   // clear any outstanding interrupts
@@ -177,7 +184,6 @@ void setupTimer1Interrupt(unsigned int compare) {
   TCCR1B = bit(WGM12) | bit(CS10) | bit (CS12);   // CTC, scale to clock / 1024
   OCR1A =  compare;       // compare A register value ((compare + 1) * clock speed / 1024)
   TIMSK1 = bit (OCIE1A);             // interrupt on Compare A Match
-
 }  
 
 void setup() {
@@ -232,6 +238,12 @@ void oneStep() {
 void loop() {
   //digitalWrite(LED, (directionCW) ? HIGH : LOW);
   //pingResult = sonar.ping();
+  if (maxStepsChanged) {
+    maxStepsChanged = false;
+    Serial.print("M,");
+    Serial.print(maxSteps);
+    Serial.print("\n");
+  }
   
   if (millis() >= pingTimer) {   // pingSpeed milliseconds since last ping, do another ping.
     pingTimer += pingSpeed;      // Set the next ping time.
@@ -247,7 +259,6 @@ void loop() {
     Serial.print("\n"); // Processing software needs LF
     pingResult = 0;
   }
- 
   //Serial.print("Ping:");
   //Serial.println(pingResult);
 }

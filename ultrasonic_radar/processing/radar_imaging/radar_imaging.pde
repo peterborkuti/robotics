@@ -2,13 +2,20 @@ import processing.serial.*;
 
 //colorMode(HSB, 360, 100, 100)
 color BACKGROUND = color(0, 0, 0); //black
-color ACTUAL  = color(3, 92, 92); //orange
-color OLD_POINTS = color(117, 92, 100); //green
+color ACTUAL  = color(360, 100, 100); //orange
 
-float MAXINDEX,PIEARC;
+
+int LIMIT_OF_POINTS = 100;
+
+int MAX_MAXINDEX = 2048;
+int MAXINDEX = MAX_MAXINDEX;
 float MINARC = radians(5);
 float MAXARC = radians(355);
 float MAX_US = 30000.0;
+
+int testDirection = 0;
+int testIndex = 0;
+boolean TEST = true;
 
 class Measurement {
 
@@ -22,25 +29,20 @@ class Measurement {
     prevIndex = pIndex;
     index = aIndex;
     direction = dir;
-    distance = d;
+    distance = int(d);
     maxindex = mIndex;
   }
 }
 
-ArrayList<Measurement> measurements = new ArrayList<Measurement>;
+ArrayList<Measurement> measurements = new ArrayList<Measurement>();
 
 float[] data;
 
 String CMD = "";
 boolean direction = false; // true: CW, false: CCW
-int index;
+int index = 0;
 
 Serial port;
-
-void setPIEARC(float maxindex) {
-  MAXINDEX = maxindex;
-  PIEARC = (MAXARC-MINARC) / MAXINDEX;
-}
 
 String getSerialPort() {
   String[] ports = Serial.list();
@@ -56,33 +58,54 @@ String getSerialPort() {
 
 void setupScreen() {
   size(400, 400);
-  colorMode(RGB);
+  colorMode(HSB, 360, 100, 100);
 
-  background();
-  stroke(10);
-  fill(50);
 }
 
 void setup() {
-  port = new Serial(this, getSerialPort(), 9600);
-  port.bufferUntil(10); // ASCII linefeed
-  port.clear();
-  setPIEARC(2048);
+  if (!TEST) {
+    port = new Serial(this, getSerialPort(), 9600);
+    port.bufferUntil(10); // ASCII linefeed
+    port.clear();
+  }
   setupScreen();
 }
 
+void doTest() {
+  testIndex = int(testIndex + random(30));
+  int dist = int(random(MAX_US));
+  String s = "";
+
+  if (abs(testIndex - MAX_MAXINDEX) < 30) {
+    s = "M," + testIndex;
+    testDirection = 1 - testDirection;
+    testIndex = 30;
+  }
+  else {  
+    s = "D," + testDirection + "," + testIndex + "," + dist;
+  }
+
+  processArduinoOutput(s);
+}
+
 void draw() {
+  background(BACKGROUND);
+
+  if (TEST) {
+     doTest();     
+  }
+
   translate(width/2, height/2);
 
-  //processArduinoOutput("DATA,CW,"+i+","+random(MAX_US));
  if ("D".equals(CMD)) {
    processData();
  }
  else if ("M".equals(CMD)) {
-   setPIEARC(data[0]);   
+   MAXINDEX = int(data[0]);   
  }
 
  drawData();
+ println("size:" + measurements.size());
  
  CMD = "";
 }
@@ -94,7 +117,7 @@ void draw() {
 */
 void removeMeasurements() {
   if (measurements.size() > LIMIT_OF_POINTS) {
-    measurements.removeRange(0, measurements.size() - LIMIT_OF_POINTS);
+   // measurements.subList(0, measurements.size() - LIMIT_OF_POINTS).clear();
   }
 }
 
@@ -104,26 +127,10 @@ void processData() {
       int prevIndex = (prevDirection != direction) ? 0 : index;
       index = int(data[1]);
 
-      //float arcLen = (min(width, height) * data[2] / MAX_US * 2.0);
-      
-      float arcLen = data[2] * 2.0 / MAX_US;
-      
-      float arcRad = (index - prevIndex) * PIEARC;
-      float startArc, endArc;
-
-      if (direction) {
-        startArc = MINARC + prevIndex * PIEARC;
-        endArc = startArc + arcRad;
+      measurements.add(new Measurement(prevIndex, index, direction, data[2], MAXINDEX));
+      if (measurements.size() > LIMIT_OF_POINTS) {
+         measurements.remove(0); 
       }
-      else {
-        //arc() needs that startArc < endArc
-        endArc = MAXARC - prevIndex * PIEARC;
-        startArc = endArc - arcRad;
-      }
-          
-      println(direction?"CW":"CCW",prevIndex, index, arcLen);
-
-      measurements.add(new Measurement(prevIndex, index, ,direction, data[2], MAXINDEX));
 }
 
 void drawOneData(int i, boolean last, int pIndex, int index, boolean dir, int distance, int maxindex) {
@@ -134,12 +141,12 @@ void drawOneData(int i, boolean last, int pIndex, int index, boolean dir, int di
   float startArc, endArc;
 
   if (dir) {
-    startArc = MINARC + prevIndex * piearc;
+    startArc = MINARC + pIndex * piearc;
     endArc = startArc + arcRad;
   }
   else {
     //arc() needs that startArc < endArc
-    endArc = MAXARC - prevIndex * piearc;
+    endArc = MAXARC - pIndex * piearc;
     startArc = endArc - arcRad;
   }
   
@@ -148,55 +155,29 @@ void drawOneData(int i, boolean last, int pIndex, int index, boolean dir, int di
   fill(BACKGROUND);
   arc(0, 0, min(width, height), min(width, height), startArc, endArc);
   */
-  if (arcLen > 0) {
-    noStroke();
-    fill(117, 92, i);
-    println("len, start, end:", arcLen, startArc, endArc);
-    arc(0, 0, arcLen, arcLen, startArc, endArc);
-  }
-  
   if (last) {
     stroke(ACTUAL);
     fill(ACTUAL);
-    arc(0, 0, min(width, height), min(width, height), (startArc+endArc)
+    arc(0, 0, min(width, height), min(width, height), (startArc+endArc) / 2 - PI/90, (startArc+endArc) / 2 + PI/90);
+  }
+
+  if (arcLen > 0) {
+    noStroke();
+    fill(107, 99, i);
+    arc(0, 0, arcLen, arcLen, startArc, endArc);
   }
 }
 
 void drawData() {
   for (int i = 0; i < measurements.size(); i++) {
-      Measurement m = measurements[i];
+      Measurement m = measurements.get(i);
       drawOneData(i, i == (measurements.size() - 1), m.prevIndex, m.index,
         m.direction, m.distance, m.maxindex);
   }
 }
 
-void drawLastData() {
-  float arcRad = (index - prevIndex) * PIEARC;
-  float startArc, endArc;
-
-  if (direction) {
-    startArc = MINARC + prevIndex * PIEARC;
-    endArc = startArc + arcRad;
-  }
-  else {
-    //arc() needs that startArc < endArc
-    endArc = MAXARC - prevIndex * PIEARC;
-    startArc = endArc - arcRad;
-  }
-  
-  stroke(BACKGROUND);
-  fill(BACKGROUND);
-  arc(0, 0, min(width, height), min(width, height), startArc, endArc);
-
-  if (arcLen > 0) {
-    noStroke();
-    fill(50);
-    println("len, start, end:", arcLen, startArc, endArc);
-    arc(0, 0, arcLen, arcLen, startArc, endArc);
-  }
-}
-
 void processArduinoOutput(String s) {
+  println("PAO:" + s);
   CMD = "";
   if (s.indexOf(",") > 0) {
     String[] a = s.split(",");
@@ -206,15 +187,17 @@ void processArduinoOutput(String s) {
        data[i] = float(a[i + 1]);
     }
     // For debugging
+    /*
     println( "serial input:" + s + " CMD:" + CMD +
     "," + join(nf(data, 5,0), ", ") );
+    */
   }
  }
 
 void serialEvent(Serial port) {
   // Data from the Serial port is read in serialEvent() using the read() function and assigned to the global variable: val
   String s = port.readString();
-  if (s != null) {
+  if (s != null && !TEST) {
     processArduinoOutput(s.trim());
   }
 }

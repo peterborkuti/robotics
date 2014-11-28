@@ -2,10 +2,12 @@ import processing.serial.*;
 
 //colorMode(HSB, 360, 100, 100)
 color BACKGROUND = color(0, 0, 0); //black
-color ACTUAL  = color(360, 100, 100); //orange
+color ACTUAL  = color(107, 99, 99); //orange
 
 
-int LIMIT_OF_POINTS = 100;
+int LIMIT_OF_POINTS = 50;
+boolean BEAM = false;
+boolean TEST = false;
 
 int MAX_MAXINDEX = 2048;
 int MAXINDEX = MAX_MAXINDEX;
@@ -15,7 +17,6 @@ float MAX_US = 30000.0;
 
 int testDirection = 0;
 int testIndex = 0;
-boolean TEST = true;
 
 class Measurement {
 
@@ -58,7 +59,7 @@ String getSerialPort() {
 
 void setupScreen() {
   size(400, 400);
-  colorMode(HSB, 360, 100, 100);
+  colorMode(HSB, 360, 100, LIMIT_OF_POINTS);
 
 }
 
@@ -156,14 +157,20 @@ void drawOneData(int i, boolean last, int pIndex, int index, boolean dir, int di
   arc(0, 0, min(width, height), min(width, height), startArc, endArc);
   */
   if (last) {
-    stroke(ACTUAL);
-    fill(ACTUAL);
+    stroke(107, 99, 99);
+    fill(107, 99, 99);
     arc(0, 0, min(width, height), min(width, height), (startArc+endArc) / 2 - PI/90, (startArc+endArc) / 2 + PI/90);
   }
 
   if (arcLen > 0) {
-    noStroke();
-    fill(107, 99, i);
+    if (BEAM) {
+      noStroke();
+      fill(107, 99, i);
+    }
+    else {  
+      stroke(107, 99, i);
+      noFill();
+    }
     arc(0, 0, arcLen, arcLen, startArc, endArc);
   }
 }

@@ -13,7 +13,7 @@ int MAX_MAXINDEX = 2048;
 int MAXINDEX = MAX_MAXINDEX;
 float MINARC = radians(5);
 float MAXARC = radians(355);
-float MAX_US = 30000.0;
+float MAX_US = 25000.0;
 
 int testDirection = 0;
 int testIndex = 0;

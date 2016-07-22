@@ -1,3 +1,7 @@
+# balancers
+
+## Simple one with distant measuring
+
 I'd like to build a simple two wheeled balancing "robot" without giro/accelerometer:
 
 * 2 wheels in a common shaft
@@ -13,3 +17,10 @@ I have all the necessary parts (apart from the "gears" and I have an idea of the
 
 Goal: knowing how to tune (=find the appropriate constants) a PID control algorithm and having a cool robot
  
+## Another super simple self balancer
+
+ 
+![](images/pvcbot-01.jpg)
+![](images/pvcbot-02.jpg)
+![](images/pvcbot-03.jpg)
+![](images/pvcbot-04.jpg)
